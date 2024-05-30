@@ -5,13 +5,12 @@
 ////////////////////////////////////////////////////
 
 // Init:                                 1
-// Endpoints:                            1
+// Upgrade:                              1
+// Endpoints:                           17
 // Async Callback (empty):               1
-// Total number of exported functions:   3
+// Total number of exported functions:  20
 
 #![no_std]
-#![allow(internal_features)]
-#![feature(lang_items)]
 
 multiversx_sc_wasm_adapter::allocator!();
 multiversx_sc_wasm_adapter::panic_handler!();
@@ -21,6 +20,23 @@ multiversx_sc_wasm_adapter::endpoints! {
     (
         init => init
         upgrade => upgrade
+        deposit => deposit
+        depositRoyalties => deposit_royalties
+        distribute => distribute
+        distributeRoyalties => distribute_royalties
+        claimProtocolReserves => claim_protocol_reserves
+        getProtocolReserve => reserve
+        getRewardToken => reward_token
+        getLiquidRewardToken => liquid_reward_token
+        getBurnRate => burn_rate
+        getShareRate => share_rate
+        getAccumulatedTokens => tokens
+        getAccumulatedTokenBalance => token_balance
+        getCreators => creators
+        getCreatorTokens => creator_tokens
+        getCreatorRoyalties => creator_royalties
+        getLiquidSC => xoxno_liquid_sc
+        getAggregatorSC => ash_sc
     )
 }
 
