@@ -14,7 +14,9 @@ pub mod storage;
 pub mod structs;
 
 #[multiversx_sc::contract]
-pub trait Accumulator: crate::storage::StorageModule + crate::helpers::HelpersModule {
+pub trait Accumulator:
+    crate::storage::StorageModule + crate::helpers::HelpersModule + crate::query::QueryModule
+{
     #[init]
     fn init(
         &self,
