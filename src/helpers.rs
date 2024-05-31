@@ -1,15 +1,15 @@
 multiversx_sc::imports!();
 multiversx_sc::derive_imports!();
 use crate::liquid_proxy::RsLiquidXoxnoProxy;
-use crate::structs::{AggregatorStep, TokenAmount};
+use crate::structs::{AggregatorStep, CreatorRoyaltiesAmount, TokenAmount};
 
 #[multiversx_sc::module]
 pub trait HelpersModule: crate::storage::StorageModule {
+
     fn forward_real_yield(&self, amount: &BigUint, reward_token: &TokenIdentifier) {
         let share_rate = self.share_rate().get();
         let burn_rate = self.burn_rate().get();
-        let xoxno_liquid_sc = self.xoxno_liquid_sc().get();
-        let liquid_token = self.liquid_reward_token().get();
+        let xoxno_liquid_sc = &self.xoxno_liquid_sc().get();
 
         let real_yield_before_burn = self.calculate_split(amount, &share_rate);
         let burn = self.calculate_split(&real_yield_before_burn, &burn_rate);
@@ -18,18 +18,30 @@ pub trait HelpersModule: crate::storage::StorageModule {
 
         self.burn(reward_token, &burn);
         self.tx()
-            .to(&xoxno_liquid_sc)
+            .to(xoxno_liquid_sc)
             .typed(RsLiquidXoxnoProxy)
             .add_rewards()
             .single_esdt(reward_token, 0, &real_yield)
             .transfer_execute();
 
+        let liquid_received = self.delegate_xoxno(xoxno_liquid_sc, &protocol_revenue, reward_token);
+
+        self.reserve().update(|qt| *qt += &liquid_received.amount);
+    }
+
+    fn delegate_xoxno(
+        &self,
+        sc: &ManagedAddress,
+        amount: &BigUint,
+        token: &TokenIdentifier,
+    ) -> EsdtTokenPayment {
+        let liquid_token = self.liquid_reward_token().get();
         let transfers = self
             .tx()
-            .to(&xoxno_liquid_sc)
+            .to(sc)
             .typed(RsLiquidXoxnoProxy)
             .delegate(OptionalValue::<ManagedAddress>::None)
-            .single_esdt(reward_token, 0, &protocol_revenue)
+            .single_esdt(token, 0, amount)
             .returns(ReturnsBackTransfers)
             .sync_call();
 
@@ -38,8 +50,7 @@ pub trait HelpersModule: crate::storage::StorageModule {
             liquid_received.token_identifier.eq(&liquid_token),
             "Wrong token received during delegation"
         );
-
-        self.reserve().update(|qt| *qt += &liquid_received.amount);
+        liquid_received
     }
 
     fn burn(&self, token: &TokenIdentifier, amount: &BigUint) {
@@ -50,19 +61,20 @@ pub trait HelpersModule: crate::storage::StorageModule {
         total_amount * cut_percentage / crate::config::PERCENTAGE_TOTAL
     }
 
-    fn forward_royalties(
+    fn forward_shares(
         &self,
-        creator: &ManagedAddress,
-        amount: &BigUint,
-        reward_token: &TokenIdentifier,
+        creators: &ManagedVec<CreatorRoyaltiesAmount<Self::Api>>,
+        total_amount: &BigUint,
+        total_shares_amount: &BigUint,
     ) {
-        let xoxno_liquid_sc = self.xoxno_liquid_sc().get();
-        self.tx()
-            .to(xoxno_liquid_sc)
-            .typed(RsLiquidXoxnoProxy)
-            .delegate(OptionalValue::Some(creator))
-            .single_esdt(reward_token, 0, amount)
-            .sync_call();
+        let liquid_identifier = self.liquid_reward_token().get();
+        for creator in creators {
+            let share = creator.amount.div(total_amount).mul(total_shares_amount);
+            self.tx()
+                .to(creator.creator)
+                .single_esdt(&liquid_identifier, 0, &share)
+                .transfer();
+        }
     }
 
     #[proxy]
@@ -71,25 +83,25 @@ pub trait HelpersModule: crate::storage::StorageModule {
     fn aggregate(
         &self,
         token: &EgldOrEsdtTokenIdentifier,
-        amount: BigUint,
+        amount: &BigUint,
         gas: u64,
         steps: ManagedVec<AggregatorStep<Self::Api>>,
         limits: ManagedVec<TokenAmount<Self::Api>>,
     ) -> EsdtTokenPayment<Self::Api> {
         let mut call = self.dex_proxy(self.ash_sc().get());
 
-        if token.is_esdt() {
+        if token.clone().is_esdt() {
             let (_, all_payments): (MultiValue2<BigUint, ManagedVec<EsdtTokenPayment>>, _) = call
                 .aggregate_esdt(steps, limits, false)
-                .with_esdt_transfer((token.clone().unwrap_esdt(), 0, amount))
-                .with_gas_limit(gas)
+                .single_esdt(&token.clone().unwrap_esdt(), 0, amount)
+                .gas(gas)
                 .execute_on_dest_context_with_back_transfers();
             all_payments.esdt_payments.get(0)
         } else {
             let (_, all_payments): (ManagedVec<EsdtTokenPayment>, _) = call
                 .aggregate_egld(steps, limits)
-                .with_egld_transfer(amount)
-                .with_gas_limit(gas)
+                .egld(amount)
+                .gas(gas)
                 .execute_on_dest_context_with_back_transfers();
             all_payments.esdt_payments.get(0)
         }

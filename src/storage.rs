@@ -9,7 +9,7 @@ pub trait StorageModule {
 
     #[view(getRewardToken)]
     #[storage_mapper("rewardToken")]
-    fn reward_token(&self) -> SingleValueMapper<TokenIdentifier>;
+    fn reward_token(&self) -> SingleValueMapper<EgldOrEsdtTokenIdentifier>;
 
     #[view(getLiquidRewardToken)]
     #[storage_mapper("liquidRewardToken")]

@@ -1,6 +1,8 @@
 multiversx_sc::imports!();
 multiversx_sc::derive_imports!();
 
+use crate::structs::CreatorRoyalties;
+
 #[multiversx_sc::module]
 pub trait QueryModule: crate::storage::StorageModule {
     #[view(queryCreatorRoyalties)]
@@ -18,20 +20,20 @@ pub trait QueryModule: crate::storage::StorageModule {
     }
 
     #[view(queryAllCreatorRoyalties)]
-    fn get_all_creator_royalties(
-        &self,
-    ) -> MultiValueEncoded<MultiValue2<ManagedAddress, MultiValueEncoded<EgldOrEsdtTokenPayment>>>
-    {
+    fn get_all_creator_royalties(&self) -> MultiValueEncoded<CreatorRoyalties<Self::Api>> {
         let mut summary = MultiValueEncoded::new();
         let creators = self.creators();
-        for creator in &creators {
-            let mut royalties = MultiValueEncoded::new();
+        for creator in creators.iter() {
+            let mut royalties = ManagedVec::new();
             let tokens = self.creator_tokens(&creator);
-            for token in &tokens {
+            for token in tokens.iter() {
                 let amount = self.creator_royalties(&creator, &token).get();
-                royalties.push(EgldOrEsdtTokenPayment::new(token, 0, amount));
+                royalties.push(EsdtTokenPayment::new(token.into_name().into(), 0, amount));
             }
-            summary.push(MultiValue2((creator, royalties)));
+            summary.push(CreatorRoyalties {
+                creator: creator,
+                tokens: royalties,
+            });
         }
         return summary;
     }

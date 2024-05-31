@@ -21,7 +21,7 @@ pub trait ManagerModule: crate::storage::StorageModule {
 
     #[only_owner]
     #[endpoint(changeRewardToken)]
-    fn change_reward_token(&self, reward_token: TokenIdentifier) {
+    fn change_reward_token(&self, reward_token: EgldOrEsdtTokenIdentifier) {
         self.reward_token().set(reward_token);
     }
 

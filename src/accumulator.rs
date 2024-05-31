@@ -3,7 +3,7 @@
 #[allow(unused_imports)]
 use multiversx_sc::imports::*;
 
-use structs::{AggregatorStep, TokenAmount};
+use structs::{AggregatorStep, CreatorRoyaltiesAmount, TokenAmount};
 
 pub mod config;
 pub mod helpers;
@@ -23,7 +23,7 @@ pub trait Accumulator:
         xoxno_liquid_sc: ManagedAddress,
         burn_rate: BigUint,
         share_rate: BigUint,
-        reward_token: TokenIdentifier,
+        reward_token: EgldOrEsdtTokenIdentifier,
         liquid_reward_token: TokenIdentifier,
         ash_sc: ManagedAddress,
     ) {
@@ -41,7 +41,7 @@ pub trait Accumulator:
         xoxno_liquid_sc: ManagedAddress,
         burn_rate: BigUint,
         share_rate: BigUint,
-        reward_token: TokenIdentifier,
+        reward_token: EgldOrEsdtTokenIdentifier,
         liquid_reward_token: TokenIdentifier,
         ash_sc: ManagedAddress,
     ) {
@@ -95,14 +95,14 @@ pub trait Accumulator:
         let amount = map_token_balance.get();
         require!(amount > BigUint::zero(), "No balance to distribute");
 
-        if token.is_esdt() && reward_token.eq(&token.clone().unwrap_esdt()) {
-            self.forward_real_yield(&amount, &reward_token);
+        if token.is_esdt() && reward_token.eq(token) {
+            self.forward_real_yield(&amount, &reward_token.unwrap_esdt());
             map_token_balance.clear();
             map_tokens.swap_remove(token);
             return;
         }
 
-        let output = self.aggregate(token, amount, gas, steps, limits);
+        let output = self.aggregate(token, &amount, gas, steps, limits);
         require!(
             output.token_identifier.eq(&reward_token),
             "Invalid reward token"
@@ -116,34 +116,55 @@ pub trait Accumulator:
     fn distribute_royalties(
         &self,
         token: &EgldOrEsdtTokenIdentifier,
-        creator: &ManagedAddress,
         gas: u64,
         steps: ManagedVec<AggregatorStep<Self::Api>>,
         limits: ManagedVec<TokenAmount<Self::Api>>,
+        creators: MultiValueEncoded<ManagedAddress>,
     ) {
         let reward_token = self.reward_token().get();
-        let mut map_tokens = self.creator_tokens(creator);
-        require!(map_tokens.contains(token), "Token not found");
+        let mut total_rewards_amount = BigUint::zero();
+        let mut total_royalties = BigUint::zero();
+        let mut creators_share: ManagedVec<CreatorRoyaltiesAmount<Self::Api>> = ManagedVec::new();
+        let mut map_creators = self.creators();
+        for creator in creators {
+            let mut map_tokens = self.creator_tokens(&creator);
+            if !map_tokens.contains(token) {
+                continue;
+            }
 
-        let map_token_balance = self.creator_royalties(creator, token);
-        let amount = map_token_balance.get();
-        require!(amount > BigUint::zero(), "No royalties to distribute");
+            let map_token_balance = self.creator_royalties(&creator, token);
+            let amount = map_token_balance.get();
+            if amount == BigUint::zero() {
+                continue;
+            }
 
-        if token.is_esdt() && reward_token.eq(&token.clone().unwrap_esdt()) {
-            self.forward_royalties(creator, &amount, &reward_token);
+            total_rewards_amount += &amount;
             map_token_balance.clear();
             map_tokens.swap_remove(token);
-            return;
+            if map_tokens.len() == 0 {
+                map_creators.swap_remove(&creator);
+            }
+            creators_share.push(CreatorRoyaltiesAmount { creator, amount });
         }
 
-        let output = self.aggregate(token, amount, gas, steps, limits);
-        require!(
-            output.token_identifier.eq(&reward_token),
-            "Invalid reward token"
-        );
-        map_token_balance.clear();
-        map_tokens.swap_remove(token);
-        self.forward_royalties(creator, &output.amount, &output.token_identifier);
+        if total_rewards_amount > 0 {
+            if reward_token.ne(token) {
+                let output = self.aggregate(token, &total_rewards_amount, gas, steps, limits);
+                total_royalties = total_rewards_amount;
+                total_rewards_amount = output.amount;
+                require!(
+                    output.token_identifier.eq(&reward_token),
+                    "Invalid reward token"
+                );
+            }
+
+            let liquid_xoxno = self.delegate_xoxno(
+                &self.xoxno_liquid_sc().get(),
+                &total_rewards_amount,
+                &reward_token.unwrap_esdt(),
+            );
+            self.forward_shares(&creators_share, &total_royalties, &liquid_xoxno.amount)
+        }
     }
 
     #[endpoint(claimProtocolReserves)]
