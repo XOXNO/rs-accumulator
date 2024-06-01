@@ -1,11 +1,12 @@
 multiversx_sc::imports!();
 multiversx_sc::derive_imports!();
+use crate::aggregator::AggregatorContractProxy;
+use crate::aggregator::{AggregatorStep, TokenAmount};
 use crate::liquid_proxy::RsLiquidXoxnoProxy;
-use crate::structs::{AggregatorStep, CreatorRoyaltiesAmount, TokenAmount};
+use crate::structs::CreatorRoyaltiesAmount;
 
 #[multiversx_sc::module]
 pub trait HelpersModule: crate::storage::StorageModule {
-
     fn forward_real_yield(&self, amount: &BigUint, reward_token: &TokenIdentifier) {
         let share_rate = self.share_rate().get();
         let burn_rate = self.burn_rate().get();
@@ -40,7 +41,7 @@ pub trait HelpersModule: crate::storage::StorageModule {
             .tx()
             .to(sc)
             .typed(RsLiquidXoxnoProxy)
-            .delegate(OptionalValue::<ManagedAddress>::None)
+            .delegate(OptionalValue::Some(self.blockchain().get_sc_address()))
             .single_esdt(token, 0, amount)
             .returns(ReturnsBackTransfers)
             .sync_call();
@@ -77,9 +78,6 @@ pub trait HelpersModule: crate::storage::StorageModule {
         }
     }
 
-    #[proxy]
-    fn dex_proxy(&self, sc_address: ManagedAddress) -> ash_proxy::Proxy<Self::Api>;
-
     fn aggregate(
         &self,
         token: &EgldOrEsdtTokenIdentifier,
@@ -88,47 +86,29 @@ pub trait HelpersModule: crate::storage::StorageModule {
         steps: ManagedVec<AggregatorStep<Self::Api>>,
         limits: ManagedVec<TokenAmount<Self::Api>>,
     ) -> EsdtTokenPayment<Self::Api> {
-        let mut call = self.dex_proxy(self.ash_sc().get());
+        let call = self
+            .tx()
+            .to(self.ash_sc().get())
+            .typed(AggregatorContractProxy);
 
         if token.clone().is_esdt() {
-            let (_, all_payments): (MultiValue2<BigUint, ManagedVec<EsdtTokenPayment>>, _) = call
-                .aggregate_esdt(steps, limits, false)
+            let all_payments = call
+                .aggregate_esdt(steps, limits, false, OptionalValue::<ManagedAddress>::None)
                 .single_esdt(&token.clone().unwrap_esdt(), 0, amount)
                 .gas(gas)
-                .execute_on_dest_context_with_back_transfers();
+                .returns(ReturnsBackTransfers)
+                .sync_call();
+
             all_payments.esdt_payments.get(0)
         } else {
-            let (_, all_payments): (ManagedVec<EsdtTokenPayment>, _) = call
-                .aggregate_egld(steps, limits)
+            let all_payments = call
+                .aggregate_egld(steps, limits, OptionalValue::<ManagedAddress>::None)
                 .egld(amount)
                 .gas(gas)
-                .execute_on_dest_context_with_back_transfers();
+                .returns(ReturnsBackTransfers)
+                .sync_call();
+
             all_payments.esdt_payments.get(0)
         }
-    }
-}
-
-mod ash_proxy {
-    multiversx_sc::imports!();
-    use crate::structs::*;
-
-    #[multiversx_sc::proxy]
-    pub trait AshContract {
-        #[payable("*")]
-        #[endpoint(aggregateEsdt)]
-        fn aggregate_esdt(
-            &self,
-            steps: ManagedVec<AggregatorStep<Self::Api>>,
-            limits: ManagedVec<TokenAmount<Self::Api>>,
-            egld_return: bool,
-        ) -> MultiValue2<BigUint, ManagedVec<EsdtTokenPayment>>;
-
-        #[payable("EGLD")]
-        #[endpoint(aggregateEgld)]
-        fn aggregate_egld(
-            &self,
-            steps: ManagedVec<AggregatorStep<Self::Api>>,
-            limits: ManagedVec<TokenAmount<Self::Api>>,
-        ) -> ManagedVec<EsdtTokenPayment>;
     }
 }
