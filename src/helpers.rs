@@ -3,9 +3,9 @@ multiversx_sc::derive_imports!();
 
 use crate::aggregator::AggregatorContractProxy;
 use crate::aggregator::{AggregatorStep, TokenAmount};
+use crate::config::WAD;
 use crate::liquid_proxy::RsLiquidXoxnoProxy;
 use crate::structs::CreatorRoyaltiesAmount;
-use crate::config::WAD;
 
 #[multiversx_sc::module]
 pub trait HelpersModule: crate::storage::StorageModule {
@@ -72,16 +72,24 @@ pub trait HelpersModule: crate::storage::StorageModule {
     ) {
         let liquid_identifier = self.liquid_reward_token().get();
         let wad = BigUint::from(WAD);
+        let mut track_dust = total_shares_amount.clone();
         for creator in creators {
             let share = creator
                 .amount
                 .mul(&wad)
                 .div(total_amount)
-                .mul(total_shares_amount);
+                .mul(total_shares_amount)
+                .div(&wad);
+            if track_dust >= share {
+                track_dust -= &share;
+            }
             self.tx()
                 .to(creator.creator)
                 .single_esdt(&liquid_identifier, 0, &share)
                 .transfer();
+        }
+        if track_dust > 0 {
+            self.reserve().update(|qt| *qt += &track_dust);
         }
     }
 
