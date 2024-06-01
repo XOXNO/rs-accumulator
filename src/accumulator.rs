@@ -3,13 +3,13 @@
 #[allow(unused_imports)]
 use multiversx_sc::imports::*;
 
+use aggregator::{AggregatorStep, TokenAmount};
 use structs::CreatorRoyaltiesAmount;
-use aggregator::{TokenAmount, AggregatorStep};
 
+pub mod aggregator;
 pub mod config;
 pub mod helpers;
 pub mod liquid_proxy;
-pub mod aggregator;
 pub mod manager;
 pub mod query;
 pub mod storage;
