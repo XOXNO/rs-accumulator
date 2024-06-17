@@ -1,21 +1,18 @@
-ADDRESS=erd1qqqqqqqqqqqqqpgqyxfc4r5fmw2ljcgwxj2nuzv72y9ryvyhah0sgn5vv2
-PROXY=https://devnet-gateway.xoxno.com
-TOKEN=str:XOXNO-589e09
-LIQUID_TOKEN=str:LXOXNO-a00540
-LIQUID_SC=erd1qqqqqqqqqqqqqpgq04vxf48vdlr97p3jz73qtxlf4l9p8rezah0s37nzrm
-AGGREGATOR_SC=erd1qqqqqqqqqqqqqpgqh96hhj42huhe47j3jerlec7ndhw75gy72gesy7w2d6
+ADDRESS=erd1qqqqqqqqqqqqqpgq8538ku69p97lq4eug75y8d6g6yfwhd7c45qs4zvejt
+PROXY=https://gateway.xoxno.com
+TOKEN=str:XOXNO-c1293a
+LIQUID_TOKEN=str:LXOXNO-0eb983
+LIQUID_SC=erd1qqqqqqqqqqqqqpgqs5w0wfmf5gw7qae82upgu26cpk2ug8l245qszu3dxf
+AGGREGATOR_SC=erd1qqqqqqqqqqqqqpgqcc69ts8409p3h77q5chsaqz57y6hugvc4fvs64k74v
 BURN_RATE=3000
 SHARE_RATE=4000
-PROJECT="/Users/mihaieremia/GitHub/rs-accumulator/output/accumulator.wasm"
+PROJECT="./output-docker/accumulator/accumulator.wasm"
 
 deploy() {
     mxpy contract deploy --bytecode=${PROJECT} --recall-nonce \
     --arguments ${LIQUID_SC} ${BURN_RATE} ${SHARE_RATE} ${TOKEN} ${LIQUID_TOKEN} ${AGGREGATOR_SC} \
-    --ledger --ledger-account-index=0 --ledger-address-index=0 \
-    --guardian erd1789rujqce0ya72k03h2jp3pgqf3vdtt0e8740tndfj0jstx3w78qxcewr8 \
-    --guardian-service-url https://tools.multiversx.com/guardian \
-    --guardian-2fa-code 730372 --version 2 --options 2 \
-    --gas-limit=150000000 --send --proxy=${PROXY} --chain=D || return
+    --ledger --ledger-account-index=0 --ledger-address-index=7 \
+    --gas-limit=150000000 --send --proxy=${PROXY} --chain=1 || return
 
     echo "New smart contract address: ${ADDRESS}"
 }
@@ -25,6 +22,12 @@ upgrade() {
 
     mxpy  contract upgrade ${ADDRESS} --bytecode=${PROJECT} --recall-nonce \
     --arguments ${LIQUID_SC} ${BURN_RATE} ${SHARE_RATE} ${TOKEN} ${LIQUID_TOKEN} ${AGGREGATOR_SC} \
-    --ledger --ledger-account-index=0 --ledger-address-index=0 \
-    --gas-limit=150000000 --send --proxy=${PROXY} --chain=D || return
+    --ledger --ledger-account-index=0 --ledger-address-index=7 \
+    --gas-limit=150000000 --send --proxy=${PROXY} --chain=1 || return
+}
+
+verifyContract() {
+    mxpy --verbose contract verify "${ADDRESS}"  \
+    --packaged-src=./output-docker/accumulator/accumulator-0.0.0.source.json --verifier-url="https://play-api.multiversx.com" \
+    --docker-image="multiversx/sdk-rust-contract-builder:v8.0.0" --ledger --ledger-account-index=0 --ledger-address-index=7  || return 
 }
