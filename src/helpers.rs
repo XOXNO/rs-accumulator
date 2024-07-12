@@ -86,7 +86,7 @@ pub trait HelpersModule: crate::storage::StorageModule {
             self.tx()
                 .to(creator.creator)
                 .single_esdt(&liquid_identifier, 0, &share)
-                .transfer();
+                .transfer_execute();
         }
         if track_dust > 0 {
             self.reserve().update(|qt| *qt += &track_dust);
