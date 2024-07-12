@@ -83,10 +83,23 @@ pub trait HelpersModule: crate::storage::StorageModule {
             if track_dust >= share {
                 track_dust -= &share;
             }
+
+            let is_sc = self.blockchain().is_smart_contract(&creator.creator);
+            if is_sc {
+                let shard = self.blockchain().get_shard_of_address(&creator.creator);
+                if shard == 1 {
+                    let code = self.blockchain().get_code_metadata(&creator.creator);
+                    if !code.is_payable_by_sc() && !code.is_payable() {
+                        // Lost royalties
+                        self.reserve().update(|qt| *qt += &share);
+                        continue;
+                    }
+                }
+            }
             self.tx()
                 .to(creator.creator)
                 .single_esdt(&liquid_identifier, 0, &share)
-                .transfer();
+                .transfer_execute();
         }
         if track_dust > 0 {
             self.reserve().update(|qt| *qt += &track_dust);
