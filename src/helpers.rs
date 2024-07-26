@@ -14,10 +14,9 @@ pub trait HelpersModule: crate::storage::StorageModule {
         let burn_rate = self.burn_rate().get();
         let xoxno_liquid_sc = &self.xoxno_liquid_sc().get();
 
-        let real_yield_before_burn = self.calculate_split(amount, &share_rate);
-        let burn = self.calculate_split(&real_yield_before_burn, &burn_rate);
-        let real_yield = &real_yield_before_burn - &burn;
-        let protocol_revenue = amount - &real_yield_before_burn;
+        let real_yield = self.calculate_split(amount, &share_rate);
+        let burn = self.calculate_split(&amount, &burn_rate);
+        let protocol_revenue = amount - &real_yield - &burn;
 
         self.burn(reward_token, &burn);
         self.tx()

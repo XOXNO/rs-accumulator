@@ -4,8 +4,8 @@ TOKEN=str:XOXNO-589e09
 LIQUID_TOKEN=str:LXOXNO-a00540
 LIQUID_SC=erd1qqqqqqqqqqqqqpgq04vxf48vdlr97p3jz73qtxlf4l9p8rezah0s37nzrm
 AGGREGATOR_SC=erd1qqqqqqqqqqqqqpgqh96hhj42huhe47j3jerlec7ndhw75gy72gesy7w2d6
-BURN_RATE=3000
-SHARE_RATE=4000
+BURN_RATE=1000
+SHARE_RATE=3000
 PROJECT="./output-docker/accumulator/accumulator.wasm"
 
 deploy() {
