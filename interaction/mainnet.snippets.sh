@@ -20,7 +20,7 @@ deploy() {
 upgrade() {
     echo "Upgrade smart contract address: ${ADDRESS}"
 
-    mxpy  contract upgrade ${ADDRESS} --bytecode=${PROJECT} --recall-nonce \
+    mxpy  contract upgrade ${ADDRESS} --metadata-payable-by-sc --metadata-payable --bytecode=${PROJECT} --recall-nonce \
     --arguments ${LIQUID_SC} ${BURN_RATE} ${SHARE_RATE} ${TOKEN} ${LIQUID_TOKEN} ${AGGREGATOR_SC} \
     --ledger --ledger-account-index=0 --ledger-address-index=7 \
     --gas-limit=150000000 --send --proxy=${PROXY} --chain=1 || return
