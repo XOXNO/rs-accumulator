@@ -1,4 +1,4 @@
 target
 output
-*.lock
+# *.lock
 output-docker
