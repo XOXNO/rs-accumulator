@@ -47,7 +47,7 @@ pub trait HelpersModule: crate::storage::StorageModule {
             .returns(ReturnsBackTransfers)
             .sync_call();
 
-        let liquid_received = transfers.esdt_payments.get(0);
+        let liquid_received = transfers.esdt_payments.get(0).clone();
         require!(
             liquid_received.token_identifier.eq(&liquid_token),
             "Wrong token received during delegation"
@@ -73,12 +73,7 @@ pub trait HelpersModule: crate::storage::StorageModule {
         let wad = BigUint::from(WAD);
         let mut track_dust = total_shares_amount.clone();
         for creator in creators {
-            let share = creator
-                .amount
-                .mul(&wad)
-                .div(total_amount)
-                .mul(total_shares_amount)
-                .div(&wad);
+            let share = &creator.amount * &wad / total_amount * total_shares_amount / &wad;
             if track_dust >= share {
                 track_dust -= &share;
             }
@@ -90,13 +85,13 @@ pub trait HelpersModule: crate::storage::StorageModule {
                     let code = self.blockchain().get_code_metadata(&creator.creator);
                     if !code.is_payable_by_sc() && !code.is_payable() {
                         // Lost royalties
-                        self.reserve().update(|qt| *qt += &share);
+                        self.reserve().update(|qt| *qt += share);
                         continue;
                     }
                 }
             }
             self.tx()
-                .to(creator.creator)
+                .to(&creator.creator)
                 .single_esdt(&liquid_identifier, 0, &share)
                 .transfer_execute();
         }
@@ -119,23 +114,23 @@ pub trait HelpersModule: crate::storage::StorageModule {
             .typed(AggregatorContractProxy);
 
         if token.clone().is_esdt() {
-            let all_payments = call
+            let result = call
                 .aggregate_esdt(steps, limits, false, OptionalValue::<ManagedAddress>::None)
                 .single_esdt(&token.clone().unwrap_esdt(), 0, amount)
                 .gas(gas)
-                .returns(ReturnsBackTransfers)
+                .returns(ReturnsBackTransfersSingleESDT)
                 .sync_call();
 
-            all_payments.esdt_payments.get(0)
+            result
         } else {
-            let all_payments = call
+            let result = call
                 .aggregate_egld(steps, limits, OptionalValue::<ManagedAddress>::None)
                 .egld(amount)
                 .gas(gas)
-                .returns(ReturnsBackTransfers)
+                .returns(ReturnsBackTransfersSingleESDT)
                 .sync_call();
 
-            all_payments.esdt_payments.get(0)
+            result
         }
     }
 }
