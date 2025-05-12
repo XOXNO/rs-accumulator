@@ -29,5 +29,5 @@ upgrade() {
 verifyContract() {
     mxpy --verbose contract verify "${ADDRESS}"  \
     --packaged-src=./output-docker/accumulator/accumulator-0.0.0.source.json --verifier-url="https://play-api.multiversx.com" \
-    --docker-image="multiversx/sdk-rust-contract-builder:v8.0.0" --ledger --ledger-account-index=0 --ledger-address-index=7  || return 
+    --docker-image="multiversx/sdk-rust-contract-builder:v10.0.0" --ledger --ledger-account-index=0 --ledger-address-index=7  || return 
 }

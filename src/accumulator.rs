@@ -61,10 +61,22 @@ pub trait Accumulator:
         let (token, amount) = self.call_value().egld_or_single_fungible_esdt();
         if amount > 0 {
             let mut map_tokens = self.tokens();
+            let burn_rate = self.burn_rate().get();
+            let share_rate = self.share_rate().get();
+            let revenue_cut = burn_rate + share_rate;
+            let protoocl_share = self.calculate_split(&amount, &revenue_cut);
+            let community_share = amount - &protoocl_share;
+
+            let revenue_map = self.revenue().get(&token);
+            let updated_revenue = match revenue_map {
+                Some(revenue) => revenue + &protoocl_share,
+                None => protoocl_share,
+            };
 
             let map_token_balance = self.token_balance(&token);
+            self.revenue().insert(token.clone(), updated_revenue);
             map_tokens.insert(token);
-            map_token_balance.update(|qt| *qt += &amount);
+            map_token_balance.update(|qt| *qt += &community_share);
         }
     }
 
@@ -91,6 +103,7 @@ pub trait Accumulator:
     ) {
         let reward_token = self.reward_token().get();
         let mut map_tokens = self.tokens();
+
         require!(map_tokens.contains(token), "Token not found");
 
         let map_token_balance = self.token_balance(token);
@@ -101,17 +114,17 @@ pub trait Accumulator:
             self.forward_real_yield(&amount, &reward_token.unwrap_esdt());
             map_token_balance.clear();
             map_tokens.swap_remove(token);
-            return;
+        } else {
+            let output = self.aggregate(token, &amount, gas, steps, limits);
+            require!(
+                output.token_identifier.eq(&reward_token),
+                "Invalid reward token"
+            );
+            self.forward_real_yield(&output.amount, &output.token_identifier);
         }
 
-        let output = self.aggregate(token, &amount, gas, steps, limits);
-        require!(
-            output.token_identifier.eq(&reward_token),
-            "Invalid reward token"
-        );
         map_token_balance.clear();
         map_tokens.swap_remove(token);
-        self.forward_real_yield(&output.amount, &output.token_identifier);
     }
 
     #[endpoint(distributeRoyalties)]
@@ -171,15 +184,14 @@ pub trait Accumulator:
 
     #[endpoint(claimProtocolReserves)]
     fn claim_protocol_reserves(&self) {
-        let revenue_map = self.reserve();
-        let revenue = revenue_map.get();
-        if revenue > 0 {
-            let token = self.liquid_reward_token().get();
+        let tokens = self.revenue();
+        let owner = self.blockchain().get_owner_address();
+        for (token, balance) in tokens.iter() {
             self.tx()
-                .to(self.blockchain().get_owner_address())
-                .esdt((token, 0, revenue))
-                .transfer();
-            revenue_map.clear();
+                .to(&owner)
+                .egld_or_single_esdt(&token, 0, &balance)
+                .transfer_if_not_empty();
         }
+        self.revenue().clear();
     }
 }

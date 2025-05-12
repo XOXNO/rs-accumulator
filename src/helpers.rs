@@ -12,11 +12,12 @@ pub trait HelpersModule: crate::storage::StorageModule {
     fn forward_real_yield(&self, amount: &BigUint, reward_token: &TokenIdentifier) {
         let share_rate = self.share_rate().get();
         let burn_rate = self.burn_rate().get();
+        let total_shares = &share_rate + &burn_rate;
         let xoxno_liquid_sc = &self.xoxno_liquid_sc().get();
 
-        let real_yield = self.calculate_split(amount, &share_rate);
-        let burn = self.calculate_split(&amount, &burn_rate);
-        let protocol_revenue = amount - &real_yield - &burn;
+        let real_yield_share = self.calculate_percentage_from(&share_rate, &total_shares);
+        let real_yield = self.calculate_split(amount, &real_yield_share);
+        let burn = amount - &real_yield;
 
         self.burn(reward_token, &burn);
         self.tx()
@@ -25,10 +26,6 @@ pub trait HelpersModule: crate::storage::StorageModule {
             .add_rewards()
             .single_esdt(reward_token, 0, &real_yield)
             .transfer_execute();
-
-        let liquid_received = self.delegate_xoxno(xoxno_liquid_sc, &protocol_revenue, reward_token);
-
-        self.reserve().update(|qt| *qt += &liquid_received.amount);
     }
 
     fn delegate_xoxno(
@@ -63,6 +60,10 @@ pub trait HelpersModule: crate::storage::StorageModule {
         total_amount * cut_percentage / crate::config::PERCENTAGE_TOTAL
     }
 
+    fn calculate_percentage_from(&self, original_cut: &BigUint, total_cut: &BigUint) -> BigUint {
+        original_cut * crate::config::PERCENTAGE_TOTAL / total_cut
+    }
+
     fn forward_shares(
         &self,
         creators: &ManagedVec<CreatorRoyaltiesAmount<Self::Api>>,
@@ -72,6 +73,9 @@ pub trait HelpersModule: crate::storage::StorageModule {
         let liquid_identifier = self.liquid_reward_token().get();
         let wad = BigUint::from(WAD);
         let mut track_dust = total_shares_amount.clone();
+        let token_liquid = EgldOrEsdtTokenIdentifier::esdt(liquid_identifier.clone());
+        let revenue_map = self.revenue().get(&token_liquid);
+        let mut updated_revenue = revenue_map.unwrap_or(BigUint::zero());
         for creator in creators {
             let share = &creator.amount * &wad / total_amount * total_shares_amount / &wad;
             if track_dust >= share {
@@ -85,7 +89,7 @@ pub trait HelpersModule: crate::storage::StorageModule {
                     let code = self.blockchain().get_code_metadata(&creator.creator);
                     if !code.is_payable_by_sc() && !code.is_payable() {
                         // Lost royalties
-                        self.reserve().update(|qt| *qt += share);
+                        updated_revenue += &share;
                         continue;
                     }
                 }
@@ -96,8 +100,9 @@ pub trait HelpersModule: crate::storage::StorageModule {
                 .transfer_execute();
         }
         if track_dust > 0 {
-            self.reserve().update(|qt| *qt += &track_dust);
+            updated_revenue += &track_dust;
         }
+        self.revenue().insert(token_liquid, updated_revenue);
     }
 
     fn aggregate(

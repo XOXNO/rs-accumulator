@@ -3,9 +3,9 @@ multiversx_sc::derive_imports!();
 
 #[multiversx_sc::module]
 pub trait StorageModule {
-    #[view(getProtocolReserve)]
-    #[storage_mapper("protocolReserve")]
-    fn reserve(&self) -> SingleValueMapper<BigUint>;
+    #[view(getRevenue)]
+    #[storage_mapper("revenue")]
+    fn revenue(&self) -> MapMapper<EgldOrEsdtTokenIdentifier, BigUint>;
 
     #[view(getRewardToken)]
     #[storage_mapper("rewardToken")]
