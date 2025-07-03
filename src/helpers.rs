@@ -33,7 +33,7 @@ pub trait HelpersModule: crate::storage::StorageModule {
         sc: &ManagedAddress,
         amount: &BigUint,
         token: &TokenIdentifier,
-    ) -> EsdtTokenPayment {
+    ) -> EgldOrEsdtTokenPayment {
         let liquid_token = self.liquid_reward_token().get();
         let transfers = self
             .tx()
@@ -44,7 +44,7 @@ pub trait HelpersModule: crate::storage::StorageModule {
             .returns(ReturnsBackTransfers)
             .sync_call();
 
-        let liquid_received = transfers.esdt_payments.get(0).clone();
+        let liquid_received = transfers.payments.get(0).clone();
         require!(
             liquid_received.token_identifier.eq(&liquid_token),
             "Wrong token received during delegation"

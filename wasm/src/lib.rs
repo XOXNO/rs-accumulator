@@ -25,7 +25,7 @@ multiversx_sc_wasm_adapter::endpoints! {
         distribute => distribute
         distributeRoyalties => distribute_royalties
         claimProtocolReserves => claim_protocol_reserves
-        getProtocolReserve => reserve
+        getRevenue => revenue
         getRewardToken => reward_token
         getLiquidRewardToken => liquid_reward_token
         getBurnRate => burn_rate
