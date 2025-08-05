@@ -1,8 +1,6 @@
 multiversx_sc::imports!();
 multiversx_sc::derive_imports!();
 
-use crate::aggregator::AggregatorContractProxy;
-use crate::aggregator::{AggregatorStep, TokenAmount};
 use crate::config::WAD;
 use crate::liquid_proxy::RsLiquidXoxnoProxy;
 use crate::structs::CreatorRoyaltiesAmount;
@@ -109,33 +107,18 @@ pub trait HelpersModule: crate::storage::StorageModule {
         &self,
         token: &EgldOrEsdtTokenIdentifier,
         amount: &BigUint,
-        gas: u64,
-        steps: ManagedVec<AggregatorStep<Self::Api>>,
-        limits: ManagedVec<TokenAmount<Self::Api>>,
-    ) -> EsdtTokenPayment<Self::Api> {
-        let call = self
+        args: ManagedArgBuffer<Self::Api>,
+    ) -> EgldOrEsdtTokenPayment<Self::Api> {
+        let back_transfers = self
             .tx()
-            .to(self.ash_sc().get())
-            .typed(AggregatorContractProxy);
+            .to(self.ash_sc().get()) // Use protocol-configured swap router
+            .raw_call(ManagedBuffer::new_from_bytes(b"swap"))
+            .arguments_raw(args) // Pass through swap configuration (path, slippage, etc.)
+            .egld_or_single_esdt(token, 0, amount)
+            .returns(ReturnsBackTransfers) // Reset to capture all return transfers
+            .sync_call();
 
-        if token.clone().is_esdt() {
-            let result = call
-                .aggregate_esdt(steps, limits, false, OptionalValue::<ManagedAddress>::None)
-                .single_esdt(&token.clone().unwrap_esdt(), 0, amount)
-                .gas(gas)
-                .returns(ReturnsBackTransfersSingleESDT)
-                .sync_call();
-
-            result
-        } else {
-            let result = call
-                .aggregate_egld(steps, limits, OptionalValue::<ManagedAddress>::None)
-                .egld(amount)
-                .gas(gas)
-                .returns(ReturnsBackTransfersSingleESDT)
-                .sync_call();
-
-            result
-        }
+        let payment = back_transfers.payments.get(0).clone();
+        payment
     }
 }

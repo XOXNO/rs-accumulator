@@ -3,7 +3,7 @@ PROXY=https://devnet-gateway.xoxno.com
 TOKEN=str:XOXNO-589e09
 LIQUID_TOKEN=str:LXOXNO-a00540
 LIQUID_SC=erd1qqqqqqqqqqqqqpgq04vxf48vdlr97p3jz73qtxlf4l9p8rezah0s37nzrm
-AGGREGATOR_SC=erd1qqqqqqqqqqqqqpgqh96hhj42huhe47j3jerlec7ndhw75gy72gesy7w2d6
+AGGREGATOR_SC=erd1qqqqqqqqqqqqqpgqglqtgt5m50njg6le3calj6hknfuuta2tnrzsuh2qlc
 BURN_RATE=1000
 SHARE_RATE=3000
 PROJECT="./output-docker/accumulator/accumulator.wasm"
@@ -29,5 +29,5 @@ upgrade() {
 verifyContract() {
     mxpy --verbose contract verify "${ADDRESS}"  \
     --packaged-src=./output-docker/accumulator/accumulator-0.0.0.source.json --verifier-url="https://devnet-play-api.multiversx.com" \
-    --docker-image="multiversx/sdk-rust-contract-builder:v8.0.0" --ledger --ledger-account-index=0 --ledger-address-index=0  || return 
+    --docker-image="multiversx/sdk-rust-contract-builder:v11.0.0" --ledger --ledger-account-index=0 --ledger-address-index=0  || return 
 }

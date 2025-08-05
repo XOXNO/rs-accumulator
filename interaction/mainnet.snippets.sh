@@ -3,7 +3,7 @@ PROXY=https://gateway.xoxno.com
 TOKEN=str:XOXNO-c1293a
 LIQUID_TOKEN=str:LXOXNO-0eb983
 LIQUID_SC=erd1qqqqqqqqqqqqqpgqs5w0wfmf5gw7qae82upgu26cpk2ug8l245qszu3dxf
-AGGREGATOR_SC=erd1qqqqqqqqqqqqqpgqcc69ts8409p3h77q5chsaqz57y6hugvc4fvs64k74v
+AGGREGATOR_SC=erd1qqqqqqqqqqqqqpgqfnarkmhu6tgjgtpenya0dek54jcwkak23g6su00nwn
 BURN_RATE=1000
 SHARE_RATE=3000
 PROJECT="./output-docker/accumulator/accumulator.wasm"
@@ -29,5 +29,5 @@ upgrade() {
 verifyContract() {
     mxpy --verbose contract verify "${ADDRESS}"  \
     --packaged-src=./output-docker/accumulator/accumulator-0.0.0.source.json --verifier-url="https://play-api.multiversx.com" \
-    --docker-image="multiversx/sdk-rust-contract-builder:v10.0.0" --ledger --ledger-account-index=0 --ledger-address-index=7  || return 
+    --docker-image="multiversx/sdk-rust-contract-builder:v11.0.0" --ledger --ledger-account-index=0 --ledger-address-index=7  || return 
 }

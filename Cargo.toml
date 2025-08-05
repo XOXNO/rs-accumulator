@@ -10,6 +10,7 @@ path = "src/accumulator.rs"
 
 [dependencies.multiversx-sc]
 version = "0.59.0"
+features = ["barnard"]
 
 [dev-dependencies]
 num-bigint = "0.4.6"

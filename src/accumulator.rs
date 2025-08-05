@@ -3,10 +3,8 @@
 #[allow(unused_imports)]
 use multiversx_sc::imports::*;
 
-use aggregator::{AggregatorStep, TokenAmount};
 use structs::CreatorRoyaltiesAmount;
 
-pub mod aggregator;
 pub mod config;
 pub mod helpers;
 pub mod liquid_proxy;
@@ -94,13 +92,7 @@ pub trait Accumulator:
     }
 
     #[endpoint]
-    fn distribute(
-        &self,
-        token: &EgldOrEsdtTokenIdentifier,
-        gas: u64,
-        steps: ManagedVec<AggregatorStep<Self::Api>>,
-        limits: ManagedVec<TokenAmount<Self::Api>>,
-    ) {
+    fn distribute(&self, token: &EgldOrEsdtTokenIdentifier, args: ManagedArgBuffer<Self::Api>) {
         let reward_token = self.reward_token().get();
         let mut map_tokens = self.tokens();
 
@@ -115,12 +107,12 @@ pub trait Accumulator:
             map_token_balance.clear();
             map_tokens.swap_remove(token);
         } else {
-            let output = self.aggregate(token, &amount, gas, steps, limits);
+            let output = self.aggregate(token, &amount, args);
             require!(
                 output.token_identifier.eq(&reward_token),
                 "Invalid reward token"
             );
-            self.forward_real_yield(&output.amount, &output.token_identifier);
+            self.forward_real_yield(&output.amount, &output.token_identifier.unwrap_esdt());
         }
 
         map_token_balance.clear();
@@ -131,9 +123,7 @@ pub trait Accumulator:
     fn distribute_royalties(
         &self,
         token: &EgldOrEsdtTokenIdentifier,
-        gas: u64,
-        steps: ManagedVec<AggregatorStep<Self::Api>>,
-        limits: ManagedVec<TokenAmount<Self::Api>>,
+        args: ManagedArgBuffer<Self::Api>,
         creators: MultiValueEncoded<ManagedAddress>,
     ) {
         let reward_token = self.reward_token().get();
@@ -164,7 +154,7 @@ pub trait Accumulator:
 
         if total_rewards_amount > 0 {
             if reward_token.ne(token) {
-                let output = self.aggregate(token, &total_rewards_amount, gas, steps, limits);
+                let output = self.aggregate(token, &total_rewards_amount, args);
                 total_royalties = total_rewards_amount;
                 total_rewards_amount = output.amount;
                 require!(
