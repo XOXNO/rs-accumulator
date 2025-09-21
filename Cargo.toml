@@ -9,14 +9,14 @@ publish = false
 path = "src/accumulator.rs"
 
 [dependencies.multiversx-sc]
-version = "0.59.0"
+version = "0.61.0"
 features = ["barnard"]
 
 [dev-dependencies]
 num-bigint = "0.4.6"
 
 [dev-dependencies.multiversx-sc-scenario]
-version = "0.59.0"
+version = "0.61.0"
 
 [workspace]
 members = [
