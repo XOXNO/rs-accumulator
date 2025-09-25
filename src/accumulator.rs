@@ -61,9 +61,9 @@ pub trait Accumulator:
             let mut map_tokens = self.tokens();
             let burn_rate = self.burn_rate().get();
             let share_rate = self.share_rate().get();
-            let revenue_cut = burn_rate + share_rate;
-            let protoocl_share = self.calculate_split(&amount, &revenue_cut);
-            let community_share = amount - &protoocl_share;
+            let community_cut = burn_rate + share_rate;
+            let community_share = self.calculate_split(&amount, &community_cut);
+            let protoocl_share = amount - &community_share;
 
             let revenue_map = self.revenue().get(&token);
             let updated_revenue = match revenue_map {

@@ -31,3 +31,7 @@ verifyContract() {
     --packaged-src=./output-docker/accumulator/accumulator-0.0.0.source.json --verifier-url="https://play-api.multiversx.com" \
     --docker-image="multiversx/sdk-rust-contract-builder:v11.0.0" --ledger --ledger-account-index=0 --ledger-address-index=7  || return 
 }
+
+buildDocker() {
+    mxpy contract reproducible-build --docker-image="multiversx/sdk-rust-contract-builder:v11.0.0"
+}
