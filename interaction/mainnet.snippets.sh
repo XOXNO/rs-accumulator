@@ -11,7 +11,7 @@ PROJECT="./output-docker/accumulator/accumulator.wasm"
 deploy() {
     mxpy contract deploy --bytecode=${PROJECT} \
     --arguments ${LIQUID_SC} ${BURN_RATE} ${SHARE_RATE} ${TOKEN} ${LIQUID_TOKEN} ${AGGREGATOR_SC} \
-    --ledger \
+    --ledger --sender-wallet-index=7  \
     --gas-limit=150000000 --send --proxy=${PROXY} --chain=1 || return
 
     echo "New smart contract address: ${ADDRESS}"
@@ -22,14 +22,14 @@ upgrade() {
 
     mxpy  contract upgrade ${ADDRESS} --metadata-payable-by-sc --metadata-payable --bytecode=${PROJECT} \
     --arguments ${LIQUID_SC} ${BURN_RATE} ${SHARE_RATE} ${TOKEN} ${LIQUID_TOKEN} ${AGGREGATOR_SC} \
-    --ledger \
+    --ledger --sender-wallet-index=7 \
     --gas-limit=150000000 --send --proxy=${PROXY} --chain=1 || return
 }
 
 verifyContract() {
     mxpy --verbose contract verify "${ADDRESS}"  \
     --packaged-src=./output-docker/accumulator/accumulator-0.0.0.source.json --verifier-url="https://play-api.multiversx.com" \
-    --docker-image="multiversx/sdk-rust-contract-builder:v11.0.0" --ledger || return 
+    --docker-image="multiversx/sdk-rust-contract-builder:v11.0.0" --ledger --sender-wallet-index=7 || return 
 }
 
 buildDocker() {
