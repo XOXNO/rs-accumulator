@@ -31,7 +31,7 @@ pub trait QueryModule: crate::storage::StorageModule {
                 royalties.push(EsdtTokenPayment::new(token.into_name().into(), 0, amount));
             }
             summary.push(CreatorRoyalties {
-                creator: creator,
+                creator,
                 tokens: royalties,
             });
         }

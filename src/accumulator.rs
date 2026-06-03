@@ -146,7 +146,7 @@ pub trait Accumulator:
             total_rewards_amount += &amount;
             map_token_balance.clear();
             map_tokens.swap_remove(token);
-            if map_tokens.len() == 0 {
+            if map_tokens.is_empty() {
                 map_creators.swap_remove(&creator);
             }
             creators_share.push(CreatorRoyaltiesAmount { creator, amount });

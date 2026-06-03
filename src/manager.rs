@@ -13,7 +13,7 @@ pub trait ManagerModule: crate::storage::StorageModule {
     #[endpoint(changeShareRate)]
     fn change_share_rate(&self, share_rate: BigUint) {
         require!(
-            share_rate < BigUint::from(crate::config::PERCENTAGE_TOTAL),
+            share_rate < crate::config::PERCENTAGE_TOTAL,
             "Invalid share rate"
         );
         self.share_rate().set(share_rate);
