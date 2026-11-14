@@ -6,9 +6,9 @@
 
 // Init:                                 1
 // Upgrade:                              1
-// Endpoints:                           20
+// Endpoints:                           23
 // Async Callback (empty):               1
-// Total number of exported functions:  23
+// Total number of exported functions:  26
 
 #![no_std]
 
@@ -22,6 +22,8 @@ multiversx_sc_wasm_adapter::endpoints! {
         upgrade => upgrade
         deposit => deposit
         depositRoyalties => deposit_royalties
+        addDistributor => add_distributor
+        removeDistributor => remove_distributor
         distribute => distribute
         distributeRoyalties => distribute_royalties
         claimProtocolReserves => claim_protocol_reserves
@@ -37,6 +39,7 @@ multiversx_sc_wasm_adapter::endpoints! {
         getCreatorRoyalties => creator_royalties
         getLiquidSC => xoxno_liquid_sc
         getAggregatorSC => ash_sc
+        getDistributors => distributors
         queryCreatorRoyalties => get_creator_royalties
         queryAllCreatorRoyalties => get_all_creator_royalties
         queryRealYieldPending => get_real_yield_pending

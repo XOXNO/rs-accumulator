@@ -7,6 +7,30 @@ use crate::structs::CreatorRoyaltiesAmount;
 
 #[multiversx_sc::module]
 pub trait HelpersModule: crate::storage::StorageModule {
+    /// Distribution swaps follow a caller-supplied route with no on-chain price bound,
+    /// so only the owner or an approved distributor may trigger them.
+    fn require_distributor(&self) {
+        let caller = self.blockchain().get_caller();
+        require!(
+            caller == self.blockchain().get_owner_address()
+                || self.distributors().contains(&caller),
+            "Caller is not a distributor"
+        );
+    }
+
+    /// Part of `held` not owed to the distribute queue or to creators' royalties.
+    fn unreserved_balance(&self, token: &EgldOrEsdtTokenIdentifier, held: BigUint) -> BigUint {
+        let mut reserved = self.token_balance(token).get();
+        for creator in self.creators().iter() {
+            reserved += self.creator_royalties(&creator, token).get();
+        }
+        if held > reserved {
+            held - reserved
+        } else {
+            BigUint::zero()
+        }
+    }
+
     fn forward_real_yield(&self, amount: &BigUint, reward_token: &TokenIdentifier) {
         let share_rate = self.share_rate().get();
         let burn_rate = self.burn_rate().get();

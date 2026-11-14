@@ -57,4 +57,10 @@ pub trait StorageModule {
     #[view(getAggregatorSC)]
     #[storage_mapper("aggregatorSC")]
     fn ash_sc(&self) -> SingleValueMapper<ManagedAddress>;
+
+    /// Callers allowed to trigger distributions (besides the owner).
+    /// Distribution routes are caller-supplied, so callers must be trusted.
+    #[view(getDistributors)]
+    #[storage_mapper("distributors")]
+    fn distributors(&self) -> UnorderedSetMapper<ManagedAddress>;
 }

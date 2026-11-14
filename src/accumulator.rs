@@ -91,8 +91,21 @@ pub trait Accumulator:
         }
     }
 
+    #[only_owner]
+    #[endpoint(addDistributor)]
+    fn add_distributor(&self, address: ManagedAddress) {
+        self.distributors().insert(address);
+    }
+
+    #[only_owner]
+    #[endpoint(removeDistributor)]
+    fn remove_distributor(&self, address: ManagedAddress) {
+        self.distributors().swap_remove(&address);
+    }
+
     #[endpoint]
     fn distribute(&self, token: &EgldOrEsdtTokenIdentifier, args: ManagedArgBuffer<Self::Api>) {
+        self.require_distributor();
         let reward_token = self.reward_token().get();
         let mut map_tokens = self.tokens();
 
@@ -102,10 +115,12 @@ pub trait Accumulator:
         let amount = map_token_balance.get();
         require!(amount > BigUint::zero(), "No balance to distribute");
 
+        // Clear before any external call so a re-entrant call cannot spend the same balance
+        map_token_balance.clear();
+        map_tokens.swap_remove(token);
+
         if token.is_esdt() && reward_token.eq(token) {
             self.forward_real_yield(&amount, &reward_token.unwrap_esdt());
-            map_token_balance.clear();
-            map_tokens.swap_remove(token);
         } else {
             let output = self.aggregate(token, &amount, args);
             require!(
@@ -114,9 +129,6 @@ pub trait Accumulator:
             );
             self.forward_real_yield(&output.amount, &output.token_identifier.unwrap_esdt());
         }
-
-        map_token_balance.clear();
-        map_tokens.swap_remove(token);
     }
 
     #[endpoint(distributeRoyalties)]
@@ -126,8 +138,8 @@ pub trait Accumulator:
         args: ManagedArgBuffer<Self::Api>,
         creators: MultiValueEncoded<ManagedAddress>,
     ) {
+        self.require_distributor();
         let reward_token = self.reward_token().get();
-        let mut total_rewards_amount = BigUint::zero();
         let mut total_royalties = BigUint::zero();
         let mut creators_share: ManagedVec<CreatorRoyaltiesAmount<Self::Api>> = ManagedVec::new();
         let mut map_creators = self.creators();
@@ -143,7 +155,7 @@ pub trait Accumulator:
                 continue;
             }
 
-            total_rewards_amount += &amount;
+            total_royalties += &amount;
             map_token_balance.clear();
             map_tokens.swap_remove(token);
             if map_tokens.is_empty() {
@@ -152,20 +164,22 @@ pub trait Accumulator:
             creators_share.push(CreatorRoyaltiesAmount { creator, amount });
         }
 
-        if total_rewards_amount > 0 {
-            if reward_token.ne(token) {
-                let output = self.aggregate(token, &total_rewards_amount, args);
-                total_royalties = total_rewards_amount;
-                total_rewards_amount = output.amount;
+        if total_royalties > 0 {
+            // Royalties already in the reward token are staked as they are
+            let reward_amount = if reward_token.ne(token) {
+                let output = self.aggregate(token, &total_royalties, args);
                 require!(
                     output.token_identifier.eq(&reward_token),
                     "Invalid reward token"
                 );
-            }
+                output.amount
+            } else {
+                total_royalties.clone()
+            };
 
             let liquid_xoxno = self.delegate_xoxno(
                 &self.xoxno_liquid_sc().get(),
-                &total_rewards_amount,
+                &reward_amount,
                 &reward_token.unwrap_esdt(),
             );
             self.forward_shares(&creators_share, &total_royalties, &liquid_xoxno.amount)
@@ -176,10 +190,17 @@ pub trait Accumulator:
     fn claim_protocol_reserves(&self) {
         let tokens = self.revenue();
         let owner = self.blockchain().get_owner_address();
-        for (token, balance) in tokens.iter() {
+        for (token, recorded) in tokens.iter() {
+            // An underfunded entry is written off instead of blocking every other token
+            let held = self.blockchain().get_sc_balance(&token, 0);
+            let amount = if held >= recorded {
+                recorded
+            } else {
+                self.unreserved_balance(&token, held)
+            };
             self.tx()
                 .to(&owner)
-                .egld_or_single_esdt(&token, 0, &balance)
+                .egld_or_single_esdt(&token, 0, &amount)
                 .transfer_if_not_empty();
         }
         self.revenue().clear();

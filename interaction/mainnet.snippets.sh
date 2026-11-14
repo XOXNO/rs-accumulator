@@ -35,3 +35,18 @@ verifyContract() {
 buildDocker() {
     mxpy contract reproducible-build --docker-image="multiversx/sdk-rust-contract-builder:v11.0.0"
 }
+
+DISTRIBUTOR_BOT=erd1cfyadenn4k9wndha0ljhlsdrww9k0jqafqq626hu9zt79urzvzasalgycz
+
+# Allow an address to call distribute / distributeRoyalties (owner only).
+# Usage: addDistributor [address]   (defaults to DISTRIBUTOR_BOT)
+addDistributor() {
+    mxpy contract call ${ADDRESS} --function=addDistributor \
+    --arguments ${1:-$DISTRIBUTOR_BOT} \
+    --ledger --sender-wallet-index=7 \
+    --gas-limit=10000000 --send --proxy=${PROXY} --chain=1 || return
+}
+
+getDistributors() {
+    mxpy contract query ${ADDRESS} --function=getDistributors --proxy=${PROXY}
+}
