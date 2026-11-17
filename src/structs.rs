@@ -5,7 +5,7 @@ use multiversx_sc::imports::*;
 #[derive(TopEncode, TopDecode, NestedEncode, NestedDecode, PartialEq, Clone, ManagedVecItem)]
 pub struct CreatorRoyalties<M: ManagedTypeApi> {
     pub creator: ManagedAddress<M>,
-    pub tokens: ManagedVec<M, EsdtTokenPayment<M>>,
+    pub tokens: ManagedVec<M, EgldOrEsdtTokenPayment<M>>,
 }
 
 #[type_abi]

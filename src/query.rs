@@ -28,7 +28,7 @@ pub trait QueryModule: crate::storage::StorageModule {
             let tokens = self.creator_tokens(&creator);
             for token in tokens.iter() {
                 let amount = self.creator_royalties(&creator, &token).get();
-                royalties.push(EsdtTokenPayment::new(token.into_name().into(), 0, amount));
+                royalties.push(EgldOrEsdtTokenPayment::new(token, 0, amount));
             }
             summary.push(CreatorRoyalties {
                 creator,
